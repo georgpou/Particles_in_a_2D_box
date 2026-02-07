@@ -1,7 +1,6 @@
 # Particle Simulation Project Guide
 
-This guide explains the project structure, how each task works, and how to build/run it. It is
-written to be approachable for readers who are new to the codebase.
+This guide explains the project structure, how each task works, and how to build/run it. You may find instructions on how to set it up for both UNIX/MACOS. For Windows, I recommend using WSL2 in order to make the build process smoother. I have also included a way for this project to work on native Windows after googling around a bit to see the differences, but I have not personally tested it, as I no longer own a Windows machine. Caution (and patience) is advised :) .
 
 ---
 
@@ -217,3 +216,114 @@ part_sys = ParticleSimulation(plt, 1000, 0.015, 0.045)
 Run `python particles_vedo.py`.
 
 ---
+Windows (native PowerShell)
+
+**Note:** These instructions assume you are running native Windows (PowerShell), not WSL. If you are using WSL, you can use the original Unix/macOS commands as-is.
+
+### Task 1: Fortran Particle Engine
+
+1. Build and run the Fortran simulation.
+
+   If your project provides the Unix scripts (`configure_build.sh`, `run_fortran.sh`), those won’t run directly in PowerShell. Use CMake directly instead:
+   ```powershell
+   cmake -S . -B build
+   cmake --build build --config Release
+   ```
+
+   Run the Fortran executable (the name may differ depending on your CMake setup; common examples are `particles.exe`):
+   ```powershell
+   .\build\particles.exe
+   ```
+
+2. Copy the output file where the player expects it:
+   ```powershell
+   New-Item -ItemType Directory -Force build | Out-Null
+   Copy-Item particle.state -Destination build\particle.state -Force
+   ```
+
+3. Run the player:
+   ```powershell
+   python particle_player.py
+   ```
+
+### Task 2: F2PY Interface (Python Driver)
+
+1. Build the F2PY interface and Python extension:
+   ```powershell
+   conda activate compute-project
+
+   if (Test-Path build) { Remove-Item -Recurse -Force build }
+
+   cmake -S . -B build -DBUILD_F2PY=ON
+   cmake --build build --config Release
+   ```
+
+   Now copy the built Python extension and any required runtime libraries to the project root.
+   On Windows, the Python extension will typically be a `.pyd` file (not `.so`), and the linked library may be a `.dll`:
+   ```powershell
+   Copy-Item build\src\particle-lib\particle*.pyd -Destination . -Force
+   Copy-Item build\src\particle-lib\*.dll -Destination . -Force
+   ```
+   *(If your build places these files in a different folder, adjust the path accordingly.)*
+
+2. Run the Python driver:
+   ```powershell
+   python particles.py
+   ```
+
+3. Copy `particle.state` to `build/`:
+   ```powershell
+   New-Item -ItemType Directory -Force build | Out-Null
+   Copy-Item particle.state -Destination build\particle.state -Force
+   ```
+
+4. Run the player:
+   ```powershell
+   python particle_player.py
+   ```
+
+### Task 3: Vedo Visualization
+
+The visualization runs directly from the F2PY interface:
+```powershell
+python particles_vedo.py
+```
+
+### Changing the Number of Particles (Windows)
+
+**Task 1 (Fortran)**
+
+Edit in `src/particles/main.f90`:
+```fortran
+n_particles = 200
+```
+
+Then rebuild + rerun:
+```powershell
+cmake -S . -B build
+cmake --build build --config Release
+.\build\particles.exe
+```
+
+**Task 2 (Python)**
+
+Edit in `particles.py`:
+```python
+n_particles = 1000
+```
+Run `python particles.py`.
+
+Run:
+
+python particles.py
+Task 3 (Vedo)
+
+Edit the first number in ParticleSimulation in particles_vedo.py:
+
+part_sys = ParticleSimulation(plt, 1000, 0.015, 0.045)
+
+Run:
+
+python particles_vedo.py
+
+Windows note (important): Task 2 (F2PY) requires a working Fortran toolchain on Windows (commonly MSYS2/MinGW-w64 gfortran). If you hit compiler/linker issues, using WSL2 is usually the fastest workaround.
