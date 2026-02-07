@@ -1,0 +1,12 @@
+name: compute-project
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - cmake
+  - pip
+  - pip:
+      - vedo
+      - meson
+      - ninja
